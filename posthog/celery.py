@@ -271,9 +271,12 @@ def ingestion_lag():
     # Note that it runs every minute and we compare it with now(), so there's up to 60s delay
     for event, metric in {"heartbeat": "ingestion", "heartbeat_api": "ingestion_api"}.items():
         try:
-            query = """select now() - max(parseDateTimeBestEffortOrNull(JSONExtractString(properties, '$timestamp'))) from events where team_id = 2 and _timestamp > yesterday() and event = %(event)s;"""
+            query = """
+                SELECT floor(
+                    (now() - max(parseDateTimeBestEffortOrNull(JSONExtractString(properties, '$timestamp')))) / 60
+                ) FROM events AND _timestamp > yesterday() AND event = %(event)s;"""
             lag = sync_execute(query, {"event": event})[0][0]
-            gauge(f"posthog_celery_{metric}_lag_seconds_rough_minute_precision", lag)
+            gauge(f"posthog_celery_{metric}_lag_minutes", lag)
         except:
             pass
 
